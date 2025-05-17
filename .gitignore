@@ -3,4 +3,4 @@ nyaenv/
 venv/
 __pycache__/
 *.pyc
-.db
+*.db

@@ -46,6 +46,7 @@ class HelpView(View):
         )
         embed.add_field(name=".help", value="Get a list of all commands.", inline=False)
         embed.add_field(name=".ping", value="Check the bot's latency.", inline=False)
+        embed.add_field(name=".suggest <suggestion>", value="Setup suggestion channel in your server!", inline=False)
 
         self.paginated_mode = False
         await self.update_paginator_visibility()
@@ -123,7 +124,3 @@ class HelpCog(commands.Cog):
         view = HelpView(ctx.author)
         await view.update_paginator_visibility()
         await ctx.send(embed=embed, view=view)
-
-async def setup(bot):
-    await bot.add_cog(HelpCog(bot))
-    print(f"Loaded {__name__}")

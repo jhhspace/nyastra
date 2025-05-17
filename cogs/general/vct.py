@@ -86,7 +86,6 @@ class VCTracker(commands.Cog):
     async def on_voice_state_update(self, member, before, after):
         user_id = str(member.id)
 
-        # Join VC
         if before.channel is None and after.channel is not None:
             now = datetime.utcnow()
             self.active_sessions[user_id] = {
@@ -107,11 +106,9 @@ class VCTracker(commands.Cog):
                 elapsed = (now - wait_data["start"]).total_seconds()
                 self.update_average("wait_logs", wait_data["user"], elapsed)
 
-        # Leave VC
         elif before.channel is not None and after.channel is None:
             await self.handle_vc_leave(member, before.channel)
 
-        # Switch VC
         elif before.channel is not None and after.channel is not None and before.channel.id != after.channel.id:
             await self.handle_vc_leave(member, before.channel)
 
@@ -129,7 +126,6 @@ class VCTracker(commands.Cog):
             """, (user_id, before.channel.name, after.channel.name, now.isoformat()))
             self.conn.commit()
 
-        # Same VC (check if someone joined)
         elif before.channel == after.channel:
             now = datetime.utcnow()
             for uid, session in list(self.active_sessions.items()):
@@ -153,13 +149,11 @@ class VCTracker(commands.Cog):
         vc_channel_name = vc.name if vc else "Unknown"
 
         c = self.conn.cursor()
-        # Insert session
         c.execute("""
             INSERT INTO sessions (user_id, vc_channel, start_time, end_time, duration_seconds)
             VALUES (?, ?, ?, ?, ?)
         """, (user_id, vc_channel_name, start_time.isoformat(), end_time.isoformat(), duration))
 
-        # Update vc_channels stats
         c.execute("""
             SELECT total_seconds, sessions FROM vc_channels WHERE user_id = ? AND vc_channel = ?
         """, (user_id, vc_channel_name))
@@ -189,18 +183,15 @@ class VCTracker(commands.Cog):
         user_id = str(member.id)
         c = self.conn.cursor()
 
-        # Total VC time
         c.execute("SELECT SUM(duration_seconds) AS total FROM sessions WHERE user_id = ?", (user_id,))
         row = c.fetchone()
         total_seconds = row["total"] or 0
         total = str(timedelta(seconds=int(total_seconds)))
 
-        # Wait logs average
         c.execute("SELECT average, count FROM wait_logs WHERE user_id = ?", (user_id,))
         wait_row = c.fetchone()
         avg_wait = f"{wait_row['average']:.2f} seconds" if wait_row and wait_row["count"] > 0 else "No wait time data"
 
-        # Number of sessions
         c.execute("SELECT COUNT(*) AS session_count FROM sessions WHERE user_id = ?", (user_id,))
         sessions_count = c.fetchone()["session_count"]
 
@@ -212,7 +203,6 @@ class VCTracker(commands.Cog):
         embed.add_field(name="Avg Time Until Someone Joined", value=avg_wait, inline=False)
         embed.add_field(name="Sessions Tracked", value=str(sessions_count), inline=False)
 
-        # VC Time per Channel
         c.execute("SELECT vc_channel, total_seconds, sessions FROM vc_channels WHERE user_id = ?", (user_id,))
         rows = c.fetchall()
         if rows:
@@ -222,7 +212,6 @@ class VCTracker(commands.Cog):
                 vc_lines.append(f"**{r['vc_channel']}**: {timedelta(seconds=int(avg))} avg over {r['sessions']} sessions")
             embed.add_field(name="VC Time per Channel", value="\n".join(vc_lines), inline=False)
 
-        # Last 5 switch logs
         c.execute("SELECT from_vc, to_vc, timestamp FROM switch_logs WHERE user_id = ? ORDER BY timestamp DESC LIMIT 5", (user_id,))
         switch_logs = c.fetchall()
         if switch_logs:
@@ -258,7 +247,6 @@ class VCResetButton(Button):
 
         c = self.cog.conn.cursor()
         user_id_str = str(self.user_id)
-        # Delete all user-related data from all tables
         c.execute("DELETE FROM sessions WHERE user_id = ?", (user_id_str,))
         c.execute("DELETE FROM response_times WHERE user_id = ?", (user_id_str,))
         c.execute("DELETE FROM wait_logs WHERE user_id = ?", (user_id_str,))

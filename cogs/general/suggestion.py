@@ -39,15 +39,15 @@ class PersistentApproveRejectView(discord.ui.View):
 
     @discord.ui.button(label="Approve", style=discord.ButtonStyle.success, custom_id="persistent_approve_button")
     async def approve_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await self._update_embed(interaction, "✅ Approved", "✅")
+        await self._update_embed(interaction, "Approved", "✅")
 
     @discord.ui.button(label="Reject", style=discord.ButtonStyle.danger, custom_id="persistent_reject_button")
     async def reject_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await self._update_embed(interaction, "❌ Rejected", "❌")
+        await self._update_embed(interaction, "Rejected", "❌")
 
     @discord.ui.button(label="Maybe", style=discord.ButtonStyle.secondary, custom_id="persistent_maybe_button")
     async def maybe_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await self._update_embed(interaction, "❓ Maybe", "❓")
+        await self._update_embed(interaction, "Maybe", "❓")
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         if not has_manage_guild(interaction):

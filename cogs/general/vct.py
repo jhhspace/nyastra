@@ -1,28 +1,86 @@
 import discord
 from discord.ext import commands
 from discord.ui import View, Button
-import json
-import os
+import sqlite3
 from datetime import datetime, timedelta
 
+DB_FILE = "vc_tracking.db"
+
+def dict_factory(cursor, row):
+    d = {}
+    for idx, col in enumerate(cursor.description):
+        d[col[0]] = row[idx]
+    return d
 
 class VCTracker(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.data_file = "vc_tracking.json"
-        self.tracking_data = self.load_data()
+        self.conn = sqlite3.connect(DB_FILE)
+        self.conn.row_factory = dict_factory
+        self.create_tables()
+
         self.active_sessions = {}
         self.wait_trackers = {}
 
-    def load_data(self):
-        if not os.path.exists(self.data_file):
-            return {}
-        with open(self.data_file, "r") as f:
-            return json.load(f)
+    def create_tables(self):
+        c = self.conn.cursor()
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS sessions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id TEXT NOT NULL,
+                vc_channel TEXT NOT NULL,
+                start_time TEXT NOT NULL,
+                end_time TEXT NOT NULL,
+                duration_seconds REAL NOT NULL
+            )
+        """)
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS response_times (
+                user_id TEXT PRIMARY KEY,
+                average REAL NOT NULL,
+                count INTEGER NOT NULL
+            )
+        """)
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS wait_logs (
+                user_id TEXT PRIMARY KEY,
+                average REAL NOT NULL,
+                count INTEGER NOT NULL
+            )
+        """)
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS switch_logs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id TEXT NOT NULL,
+                from_vc TEXT NOT NULL,
+                to_vc TEXT NOT NULL,
+                timestamp TEXT NOT NULL
+            )
+        """)
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS vc_channels (
+                user_id TEXT NOT NULL,
+                vc_channel TEXT NOT NULL,
+                total_seconds REAL NOT NULL,
+                sessions INTEGER NOT NULL,
+                PRIMARY KEY (user_id, vc_channel)
+            )
+        """)
+        self.conn.commit()
 
-    def save_data(self):
-        with open(self.data_file, "w") as f:
-            json.dump(self.tracking_data, f, indent=4)
+    def update_average(self, table, user_id, new_value):
+        c = self.conn.cursor()
+        c.execute(f"SELECT average, count FROM {table} WHERE user_id = ?", (user_id,))
+        row = c.fetchone()
+        if row:
+            old_avg = row["average"]
+            count = row["count"]
+            new_count = count + 1
+            new_avg = (old_avg * count + new_value) / new_count
+            c.execute(f"UPDATE {table} SET average = ?, count = ? WHERE user_id = ?", (new_avg, new_count, user_id))
+        else:
+            c.execute(f"INSERT INTO {table} (user_id, average, count) VALUES (?, ?, ?)", (user_id, new_value, 1))
+        self.conn.commit()
 
     @commands.Cog.listener()
     async def on_voice_state_update(self, member, before, after):
@@ -30,30 +88,24 @@ class VCTracker(commands.Cog):
 
         # Join VC
         if before.channel is None and after.channel is not None:
+            now = datetime.utcnow()
             self.active_sessions[user_id] = {
-                "join": datetime.utcnow(),
+                "join": now,
                 "waiting": True,
-                "wait_start": datetime.utcnow()
+                "wait_start": now,
+                "current_vc": after.channel.id
             }
 
             vc = after.channel
             if len(vc.members) == 1:
                 self.wait_trackers[vc.id] = {
-                    "start": datetime.utcnow(),
+                    "start": now,
                     "user": user_id
                 }
             elif len(vc.members) == 2 and vc.id in self.wait_trackers:
                 wait_data = self.wait_trackers.pop(vc.id)
-                elapsed = (datetime.utcnow() - wait_data["start"]).total_seconds()
-                tracking = self.tracking_data.setdefault(wait_data["user"], {
-                    "total_time_seconds": 0,
-                    "sessions": [],
-                    "response_times": [],
-                    "vc_channels": {},
-                    "wait_logs": []
-                })
-                tracking["wait_logs"].append(elapsed)
-                self.save_data()
+                elapsed = (now - wait_data["start"]).total_seconds()
+                self.update_average("wait_logs", wait_data["user"], elapsed)
 
         # Leave VC
         elif before.channel is not None and after.channel is None:
@@ -62,68 +114,69 @@ class VCTracker(commands.Cog):
         # Switch VC
         elif before.channel is not None and after.channel is not None and before.channel.id != after.channel.id:
             await self.handle_vc_leave(member, before.channel)
+
+            now = datetime.utcnow()
             self.active_sessions[user_id] = {
-                "join": datetime.utcnow(),
+                "join": now,
                 "waiting": True,
-                "wait_start": datetime.utcnow()
+                "wait_start": now,
+                "current_vc": after.channel.id
             }
+
+            c = self.conn.cursor()
+            c.execute("""
+                INSERT INTO switch_logs (user_id, from_vc, to_vc, timestamp) VALUES (?, ?, ?, ?)
+            """, (user_id, before.channel.name, after.channel.name, now.isoformat()))
+            self.conn.commit()
 
         # Same VC (check if someone joined)
         elif before.channel == after.channel:
+            now = datetime.utcnow()
             for uid, session in list(self.active_sessions.items()):
                 if uid == user_id:
                     continue
                 vc = after.channel
                 if any(m.id == int(uid) for m in vc.members):
                     if session["waiting"]:
-                        response_time = (datetime.utcnow() - session["wait_start"]).total_seconds()
-                        self.tracking_data.setdefault(uid, {
-                            "total_time_seconds": 0,
-                            "sessions": [],
-                            "response_times": [],
-                            "vc_channels": {},
-                            "wait_logs": []
-                        })
-                        self.tracking_data[uid]["response_times"].append(response_time)
+                        response_time = (now - session["wait_start"]).total_seconds()
+                        self.update_average("response_times", uid, response_time)
                         self.active_sessions[uid]["waiting"] = False
-                        self.save_data()
 
     async def handle_vc_leave(self, member, vc):
         user_id = str(member.id)
+        if user_id not in self.active_sessions:
+            return
 
-        if user_id in self.active_sessions:
-            start_time = self.active_sessions[user_id]["join"]
-            end_time = datetime.utcnow()
-            duration = (end_time - start_time).total_seconds()
+        start_time = self.active_sessions[user_id]["join"]
+        end_time = datetime.utcnow()
+        duration = (end_time - start_time).total_seconds()
+        vc_channel_name = vc.name if vc else "Unknown"
 
-            vc_channel_name = vc.name if vc else "Unknown"
+        c = self.conn.cursor()
+        # Insert session
+        c.execute("""
+            INSERT INTO sessions (user_id, vc_channel, start_time, end_time, duration_seconds)
+            VALUES (?, ?, ?, ?, ?)
+        """, (user_id, vc_channel_name, start_time.isoformat(), end_time.isoformat(), duration))
 
-            if user_id not in self.tracking_data:
-                self.tracking_data[user_id] = {
-                    "total_time_seconds": 0,
-                    "sessions": [],
-                    "response_times": [],
-                    "vc_channels": {},
-                    "wait_logs": []
-                }
+        # Update vc_channels stats
+        c.execute("""
+            SELECT total_seconds, sessions FROM vc_channels WHERE user_id = ? AND vc_channel = ?
+        """, (user_id, vc_channel_name))
+        row = c.fetchone()
+        if row:
+            total_seconds = row["total_seconds"] + duration
+            sessions_count = row["sessions"] + 1
+            c.execute("""
+                UPDATE vc_channels SET total_seconds = ?, sessions = ? WHERE user_id = ? AND vc_channel = ?
+            """, (total_seconds, sessions_count, user_id, vc_channel_name))
+        else:
+            c.execute("""
+                INSERT INTO vc_channels (user_id, vc_channel, total_seconds, sessions) VALUES (?, ?, ?, ?)
+            """, (user_id, vc_channel_name, duration, 1))
 
-            self.tracking_data[user_id]["total_time_seconds"] += duration
-            self.tracking_data[user_id]["sessions"].append({
-                "start": start_time.isoformat(),
-                "end": end_time.isoformat(),
-                "duration_seconds": duration,
-                "vc_channel": vc_channel_name
-            })
-
-            vc_data = self.tracking_data[user_id]["vc_channels"].setdefault(vc_channel_name, {
-                "total_seconds": 0,
-                "sessions": 0
-            })
-            vc_data["total_seconds"] += duration
-            vc_data["sessions"] += 1
-
-            del self.active_sessions[user_id]
-            self.save_data()
+        self.conn.commit()
+        del self.active_sessions[user_id]
 
         if vc and len(vc.members) == 0 and vc.id in self.wait_trackers:
             del self.wait_trackers[vc.id]
@@ -134,20 +187,22 @@ class VCTracker(commands.Cog):
             member = ctx.author
 
         user_id = str(member.id)
-        data = self.tracking_data.get(user_id)
+        c = self.conn.cursor()
 
-        if not data:
-            return await ctx.send(f"No VC data found for {member.display_name}.")
+        # Total VC time
+        c.execute("SELECT SUM(duration_seconds) AS total FROM sessions WHERE user_id = ?", (user_id,))
+        row = c.fetchone()
+        total_seconds = row["total"] or 0
+        total = str(timedelta(seconds=int(total_seconds)))
 
-        total = str(timedelta(seconds=int(data["total_time_seconds"])))
-        avg_response = (
-            f"{(sum(data['response_times']) / len(data['response_times'])):.2f} seconds"
-            if data["response_times"] else "No data"
-        )
-        avg_wait = (
-            f"{(sum(data['wait_logs']) / len(data['wait_logs'])):.2f} seconds"
-            if data["wait_logs"] else "No wait time data"
-        )
+        # Wait logs average
+        c.execute("SELECT average, count FROM wait_logs WHERE user_id = ?", (user_id,))
+        wait_row = c.fetchone()
+        avg_wait = f"{wait_row['average']:.2f} seconds" if wait_row and wait_row["count"] > 0 else "No wait time data"
+
+        # Number of sessions
+        c.execute("SELECT COUNT(*) AS session_count FROM sessions WHERE user_id = ?", (user_id,))
+        sessions_count = c.fetchone()["session_count"]
 
         embed = discord.Embed(
             title=f"VC Stats for {member.display_name}",
@@ -155,16 +210,24 @@ class VCTracker(commands.Cog):
         )
         embed.add_field(name="Total VC Time", value=total, inline=False)
         embed.add_field(name="Avg Time Until Someone Joined", value=avg_wait, inline=False)
-        embed.add_field(name="Avg Time Someone Joins You (Interaction)", value=avg_response, inline=False)
-        embed.add_field(name="Sessions Tracked", value=str(len(data["sessions"])), inline=False)
+        embed.add_field(name="Sessions Tracked", value=str(sessions_count), inline=False)
 
-        vc_channels = data.get("vc_channels", {})
-        if vc_channels:
+        # VC Time per Channel
+        c.execute("SELECT vc_channel, total_seconds, sessions FROM vc_channels WHERE user_id = ?", (user_id,))
+        rows = c.fetchall()
+        if rows:
             vc_lines = []
-            for ch_name, ch_data in vc_channels.items():
-                avg = ch_data["total_seconds"] / ch_data["sessions"]
-                vc_lines.append(f"**{ch_name}**: {timedelta(seconds=int(avg))} avg over {ch_data['sessions']} sessions")
+            for r in rows:
+                avg = r["total_seconds"] / r["sessions"]
+                vc_lines.append(f"**{r['vc_channel']}**: {timedelta(seconds=int(avg))} avg over {r['sessions']} sessions")
             embed.add_field(name="VC Time per Channel", value="\n".join(vc_lines), inline=False)
+
+        # Last 5 switch logs
+        c.execute("SELECT from_vc, to_vc, timestamp FROM switch_logs WHERE user_id = ? ORDER BY timestamp DESC LIMIT 5", (user_id,))
+        switch_logs = c.fetchall()
+        if switch_logs:
+            switch_lines = [f"{s['timestamp']}: {s['from_vc']} → {s['to_vc']}" for s in reversed(switch_logs)]
+            embed.add_field(name="Recent VC Switches", value="\n".join(switch_lines), inline=False)
 
         view = VCStatsView(self, ctx.author.id, member)
         await ctx.send(embed=embed, view=view)
@@ -193,32 +256,44 @@ class VCResetButton(Button):
         if interaction.user.id != self.user_id:
             return await interaction.response.send_message("You can only reset **your own** VC stats.", ephemeral=True)
 
+        c = self.cog.conn.cursor()
         user_id_str = str(self.user_id)
-        if user_id_str in self.cog.tracking_data:
-            del self.cog.tracking_data[user_id_str]
-            self.cog.save_data()
-            await interaction.response.send_message("✅ Your VC stats have been reset.", ephemeral=True)
-        else:
-            await interaction.response.send_message("No stats found to reset.", ephemeral=True)
+        # Delete all user-related data from all tables
+        c.execute("DELETE FROM sessions WHERE user_id = ?", (user_id_str,))
+        c.execute("DELETE FROM response_times WHERE user_id = ?", (user_id_str,))
+        c.execute("DELETE FROM wait_logs WHERE user_id = ?", (user_id_str,))
+        c.execute("DELETE FROM switch_logs WHERE user_id = ?", (user_id_str,))
+        c.execute("DELETE FROM vc_channels WHERE user_id = ?", (user_id_str,))
+        self.cog.conn.commit()
+
+        await interaction.response.send_message("✅ Your VC stats have been reset.", ephemeral=True)
+        await interaction.message.delete()
 
 
 class VCLeaderboardButton(Button):
     def __init__(self, cog: VCTracker):
-        super().__init__(label="🏆 Show Leaderboard", style=discord.ButtonStyle.primary)
+        super().__init__(label="📊 Leaderboard", style=discord.ButtonStyle.primary)
         self.cog = cog
 
     async def callback(self, interaction: discord.Interaction):
-        tracking_data = self.cog.tracking_data
-        if not tracking_data:
-            return await interaction.response.send_message("No leaderboard data available.", ephemeral=True)
+        c = self.cog.conn.cursor()
+        c.execute("""
+            SELECT user_id, SUM(duration_seconds) AS total FROM sessions
+            GROUP BY user_id ORDER BY total DESC LIMIT 10
+        """)
+        rows = c.fetchall()
 
-        sorted_data = sorted(tracking_data.items(), key=lambda x: x[1]["total_time_seconds"], reverse=True)[:10]
+        leaderboard = []
+        for idx, r in enumerate(rows, 1):
+            user = interaction.guild.get_member(int(r["user_id"]))
+            name = user.display_name if user else f"<@{r['user_id']}>"
+            total = str(timedelta(seconds=int(r["total"])))
+            leaderboard.append(f"#{idx}: **{name}** — {total}")
 
-        embed = discord.Embed(title="VC Leaderboard", color=discord.Color.gold())
-        for i, (user_id, data) in enumerate(sorted_data, start=1):
-            member = interaction.guild.get_member(int(user_id))
-            name = member.display_name if member else f"User {user_id}"
-            time_str = str(timedelta(seconds=int(data["total_time_seconds"])))
-            embed.add_field(name=f"{i}. {name}", value=f"Time: {time_str}", inline=False)
-
+        embed = discord.Embed(title="VC Time Leaderboard", color=discord.Color.gold())
+        embed.description = "\n".join(leaderboard) if leaderboard else "No data yet."
         await interaction.response.send_message(embed=embed, ephemeral=True)
+
+
+async def setup(bot):
+    await bot.add_cog(VCTracker(bot))

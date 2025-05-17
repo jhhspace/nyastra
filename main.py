@@ -2,6 +2,7 @@ import discord
 from discord.ext import commands
 import os
 from dotenv import load_dotenv
+from cogs.general.suggestion import PersistentApproveRejectView
 load_dotenv()
 
 
@@ -14,11 +15,13 @@ bot = commands.Bot(command_prefix='.', intents=intents, help_command=None)
 async def on_ready():
     print(f'Logged in as {bot.user.name} - {bot.user.id}')
     print('------')
+    await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name="you"))
 
 @bot.event
 async def setup_hook():
     await bot.load_extension('cogs.general')
     await bot.load_extension('cogs.fun')
+    bot.add_view(PersistentApproveRejectView())
 
 @bot.event
 async def on_message(message):

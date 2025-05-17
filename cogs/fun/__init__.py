@@ -7,4 +7,4 @@ async def setup(bot: commands.Bot):
         module = importlib.import_module(f".{name}", __name__)
         cog = getattr(module, name)(bot)
         await bot.add_cog(cog)
-        print(f"Loaded {name} command.")
+print("Loaded Fun Cog")

@@ -1,0 +1,92 @@
+{
+    "1373152450285932716": {
+        "total_time_seconds": 33.460156,
+        "sessions": [
+            {
+                "start": "2025-05-17T04:52:11.124969",
+                "end": "2025-05-17T04:52:14.602968",
+                "duration_seconds": 3.477999,
+                "vc_channel": "test2"
+            },
+            {
+                "start": "2025-05-17T04:52:14.603482",
+                "end": "2025-05-17T04:52:20.699060",
+                "duration_seconds": 6.095578,
+                "vc_channel": "General"
+            },
+            {
+                "start": "2025-05-17T04:52:20.699941",
+                "end": "2025-05-17T04:52:22.594697",
+                "duration_seconds": 1.894756,
+                "vc_channel": "test2"
+            },
+            {
+                "start": "2025-05-17T04:52:22.595214",
+                "end": "2025-05-17T04:52:28.776499",
+                "duration_seconds": 6.181285,
+                "vc_channel": "General"
+            },
+            {
+                "start": "2025-05-17T04:52:43.887533",
+                "end": "2025-05-17T04:52:59.698071",
+                "duration_seconds": 15.810538,
+                "vc_channel": "General"
+            }
+        ],
+        "response_times": [],
+        "vc_channels": {
+            "test2": {
+                "total_seconds": 5.372755,
+                "sessions": 2
+            },
+            "General": {
+                "total_seconds": 28.087401,
+                "sessions": 3
+            }
+        },
+        "wait_logs": []
+    },
+    "1373157288550072383": {
+        "total_time_seconds": 36.003233,
+        "sessions": [
+            {
+                "start": "2025-05-17T04:52:08.563616",
+                "end": "2025-05-17T04:52:18.896192",
+                "duration_seconds": 10.332576,
+                "vc_channel": "General"
+            },
+            {
+                "start": "2025-05-17T04:52:18.896192",
+                "end": "2025-05-17T04:52:25.703010",
+                "duration_seconds": 6.806818,
+                "vc_channel": "test2"
+            },
+            {
+                "start": "2025-05-17T04:52:25.703530",
+                "end": "2025-05-17T04:52:27.767621",
+                "duration_seconds": 2.064091,
+                "vc_channel": "General"
+            },
+            {
+                "start": "2025-05-17T04:52:41.739136",
+                "end": "2025-05-17T04:52:58.538884",
+                "duration_seconds": 16.799748,
+                "vc_channel": "General"
+            }
+        ],
+        "response_times": [],
+        "vc_channels": {
+            "General": {
+                "total_seconds": 29.196415000000002,
+                "sessions": 3
+            },
+            "test2": {
+                "total_seconds": 6.806818,
+                "sessions": 1
+            }
+        },
+        "wait_logs": [
+            2.148397
+        ]
+    }
+}

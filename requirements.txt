@@ -3,3 +3,4 @@ python-dotenv
 requests
 db-sqlite3
 aiosqlite
+openai

@@ -122,6 +122,22 @@ class HelpView(View):
         await self.update_paginator_visibility()
         await interaction.response.edit_message(embed=embed, view=self)
 
+    @discord.ui.button(label="AI", style=discord.ButtonStyle.primary, row=1)
+    async def moderation_button(self, interaction: discord.Interaction, button: Button):
+        embed = discord.Embed(
+            title="🛡️ AI Commands",
+            description="Commands to help you keep your server safe!",
+            color=discord.Color.red()
+        )
+        embed.add_field(name=".recap [15-30]", value="Summarise your whole chat! Up to 30 messages", inline=False)
+        embed.add_field(name=".rv", value="View the most recent summarized recap generated in the specific channel", inline=False)
+        embed.add_field(name=".rt", value="Toggle whether recap is allowed to be used in your server", inline=False)
+
+
+        self.paginated_mode = False
+        await self.update_paginator_visibility()
+        await interaction.response.edit_message(embed=embed, view=self)
+
     @discord.ui.button(label="❌ Close", style=discord.ButtonStyle.danger, row=1)
     async def close_button(self, interaction: discord.Interaction, button: Button):
         await interaction.message.delete()

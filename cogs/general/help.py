@@ -101,6 +101,27 @@ class HelpView(View):
         await self.update_paginator_visibility()
         await interaction.response.edit_message(embed=self.embeds[0], view=self)
 
+    @discord.ui.button(label="Moderation", style=discord.ButtonStyle.primary, row=1)
+    async def moderation_button(self, interaction: discord.Interaction, button: Button):
+        embed = discord.Embed(
+            title="🛡️ Moderation Commands",
+            description="Commands to help you keep your server safe!",
+            color=discord.Color.red()
+        )
+        embed.add_field(name=".setlogchannel [#channel]", value="Set a channel for moderation logs.", inline=False)
+        embed.add_field(name=".ban <user>", value="Ban a user from the server.", inline=False)
+        embed.add_field(name=".unban <user>", value="Unban a user from the server.", inline=False)
+        embed.add_field(name=".kick <user>", value="Kick a user from the server.", inline=False)
+        embed.add_field(name=".mute <user>", value="Mute a user.", inline=False)
+        embed.add_field(name=".unmute <user>", value="Unmute a user.", inline=False)
+        embed.add_field(name=".warn <user>", value="Warn a user.", inline=False)
+        embed.add_field(name=".unwarn <Warning ID>", value="Unwarn a user.", inline=False)
+        embed.add_field(name=".warnings <user>", value="Check warnings of a user.", inline=False)
+
+        self.paginated_mode = False
+        await self.update_paginator_visibility()
+        await interaction.response.edit_message(embed=embed, view=self)
+
     @discord.ui.button(label="❌ Close", style=discord.ButtonStyle.danger, row=1)
     async def close_button(self, interaction: discord.Interaction, button: Button):
         await interaction.message.delete()

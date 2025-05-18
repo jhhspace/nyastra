@@ -21,6 +21,7 @@ async def on_ready():
 async def setup_hook():
     await bot.load_extension('cogs.general')
     await bot.load_extension('cogs.fun')
+    await bot.load_extension('cogs.moderation')
     bot.add_view(PersistentApproveRejectView())
 
 @bot.event
@@ -35,3 +36,4 @@ async def on_message(message):
 
 
 bot.run(os.getenv('DISCORD_BOT_TOKEN'))
+# bot.run(os.getenv('TEST_TOKEN'))

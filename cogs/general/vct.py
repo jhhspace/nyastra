@@ -4,7 +4,7 @@ from discord.ui import View, Button
 import sqlite3
 from datetime import datetime, timedelta
 
-DB_FILE = "vc_tracking.db"
+DB_FILE = "./Databases/vc_tracking.db"
 
 def dict_factory(cursor, row):
     d = {}
@@ -15,7 +15,7 @@ def dict_factory(cursor, row):
 class VCTracker(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.conn = sqlite3.connect(DB_FILE)
+        self.conn = sqlite3.connect(DB_FILE, check_same_thread=False)
         self.conn.row_factory = dict_factory
         self.create_tables()
 

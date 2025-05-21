@@ -69,7 +69,7 @@ class Recap(commands.Cog):
         await ctx.send(embed=embed)
 
     @commands.command(name='recap')
-    @commands.has_permissions(manage_messages=True)
+    @commands.has_permissions()
     async def recap(self, ctx, limit: int = None):
         if limit is None:
             await self.send_error(ctx, "Please enter a number between **15 and 30**, nya~! 🐾")

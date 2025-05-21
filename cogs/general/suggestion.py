@@ -177,12 +177,12 @@ class Suggest(commands.Cog):
         channel_id = self.get_suggest_channel_id(guild_id)
 
         if channel_id is None:
-            await ctx.send("Suggestion channel is not set. Please ask a server manager to set it.")
+            await ctx.send("Suggestion channel is not set. Please ask a server manager to set it using `.suggest`.")
             return
 
         channel = ctx.guild.get_channel(channel_id)
         if channel is None:
-            await ctx.send("The suggestion channel set is invalid or I don't have access to it.")
+            await ctx.send("The suggestion channel set is invalid or I don't have access to it.\nPlease ask a server manager to set it using `.suggest`")
             return
 
         count = self.increment_suggestion_count(guild_id)

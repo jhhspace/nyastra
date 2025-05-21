@@ -36,5 +36,5 @@ async def on_message(message):
     await bot.process_commands(message)
 
 
-#bot.run(os.getenv('DISCORD_BOT_TOKEN'))
-bot.run(os.getenv('TEST_TOKEN'))
+bot.run(os.getenv('DISCORD_BOT_TOKEN'))
+#bot.run(os.getenv('TEST_TOKEN'))

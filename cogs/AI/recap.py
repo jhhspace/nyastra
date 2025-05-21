@@ -91,17 +91,26 @@ class Recap(commands.Cog):
             await self.send_error(ctx, f"Nyaa~ The recap command is on cooldown for this server. Please wait {remaining} more seconds before trying again! 🐾")
             return
 
-        self._recap_cooldowns[ctx.guild.id] = now
-        self.save_cooldown(ctx.guild.id, now)
-
         async with ctx.typing():
             await ctx.send("Nyaa~ Summarizing the chat... Please wait a moment! 🐾")
-
+            
+        ignored_bot_messages = {
+            "Nyaa~ Summarizing the chat... Please wait a moment! 🐾"
+        }
         try:
-            messages = [msg async for msg in ctx.channel.history(limit=limit) if msg.id != ctx.message.id]
+            messages = [
+                msg async for msg in ctx.channel.history(limit=limit)
+                if (
+                    msg.id != ctx.message.id
+                    and msg.content not in ignored_bot_messages
+                    and not (msg.author.bot and (msg.content.startswith('.recap') or msg.content.startswith('!recap')))
+                )
+            ]
 
             if len(messages) < 15:
                 await self.send_error(ctx, "You need a minimum of **15 messages** in the channel to run a recap, nya~! 🐾")
+                # for m in messages:
+                    # print(f"{m.id} | {m.author} | {m.content[:30]}...")
                 return
 
             convo = ""
@@ -127,6 +136,7 @@ class Recap(commands.Cog):
                 max_tokens=400,
                 temperature=0.9,
             )
+            self._recap_cooldowns[ctx.guild.id] = now
             summary = response.choices[0].message.content.strip()
 
             with sqlite3.connect(DB_PATH) as conn:
@@ -150,6 +160,7 @@ class Recap(commands.Cog):
             )
             embed.set_footer(text=f"Requested by {ctx.author.display_name} • Powered by Catnips")
             await ctx.send(embed=embed)
+            self.save_cooldown(ctx.guild.id, now)
 
         except discord.DiscordException:
             await self.send_error(ctx, "Oops, something went wrong with Discord! Please try again later, nya~ 🐾")
@@ -218,9 +229,9 @@ class Recap(commands.Cog):
         if isinstance(error, commands.MissingPermissions):
             await self.send_error(ctx, "You don’t have permission to use this command! ❌")
         elif isinstance(error, commands.MissingRequiredArgument):
-            await self.send_error(ctx, "You're missing a required argument!\nTry `!recap 30`, nya~ 🐾")
+            await self.send_error(ctx, "You're missing a required argument!\nTry `.recap 30`, nya~ 🐾")
         elif isinstance(error, commands.BadArgument):
-            await self.send_error(ctx, "Nyaa~ That doesn’t look like a valid number! Try something like `!recap 30` 🐾")
+            await self.send_error(ctx, "Nyaa~ That doesn’t look like a valid number! Try something like `.recap 30` 🐾")
         else:
             traceback.print_exc()
             await self.send_error(ctx, "Oh nyo! An unknown error occurred! Please try again later! ⚠️")

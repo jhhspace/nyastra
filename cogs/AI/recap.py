@@ -61,7 +61,7 @@ class Recap(commands.Cog):
 
     async def send_error(self, ctx, message):
         embed = discord.Embed(
-            title="⚠️ Error, nya~!",
+            title="⚠️ An error occurred!",
             description=message,
             color=discord.Color.red()
         )
@@ -80,7 +80,7 @@ class Recap(commands.Cog):
             return
 
         if limit > 30 or limit < 15:
-            await self.send_error(ctx, "Please enter a number between **15 and 30**, nya~! 🐾")
+            await self.send_error(ctx, "Please enter a number between **15 and 30**! 🐾")
             return
 
         now = datetime.utcnow().timestamp()
@@ -211,7 +211,7 @@ class Recap(commands.Cog):
         except Exception as err:
             print(f"Error fetching recaps: {err}")
             traceback.print_exc()
-            await self.send_error(ctx, "An error occurred while fetching past recaps, nya~ Please try again later! ⚠️")
+            await self.send_error(ctx, "Oh nyo! An error occurred while fetching past recaps! Please try again later! ⚠️")
 
     @recap.error
     async def recap_error(self, ctx, error):
@@ -223,12 +223,12 @@ class Recap(commands.Cog):
             await self.send_error(ctx, "Nyaa~ That doesn’t look like a valid number! Try something like `!recap 30` 🐾")
         else:
             traceback.print_exc()
-            await self.send_error(ctx, "An unknown error occurred, nya~ Please try again later! ⚠️")
+            await self.send_error(ctx, "Oh nyo! An unknown error occurred! Please try again later! ⚠️")
 
     @toggle_recap.error
     async def toggle_error(self, ctx, error):
         if isinstance(error, commands.MissingPermissions):
-            await self.send_error(ctx, "Only mods can toggle the recap feature, nya~! ❌")
+            await self.send_error(ctx, "Only mods can toggle the recap feature ❌")
         else:
             traceback.print_exc()
-            await self.send_error(ctx, "An unknown error occurred, nya~ Please try again later! ⚠️")
+            await self.send_error(ctx, "Oh nyo! An unknown error occurred! Please try again later! ⚠️")

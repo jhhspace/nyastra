@@ -98,7 +98,7 @@ class Recap(commands.Cog):
             await ctx.send("Nyaa~ Summarizing the chat... Please wait a moment! 🐾")
 
         try:
-            messages = [msg async for msg in ctx.channel.history(limit=limit)]
+            messages = [msg async for msg in ctx.channel.history(limit=limit) if msg.id != ctx.message.id]
 
             if len(messages) < 15:
                 await self.send_error(ctx, "You need a minimum of **15 messages** in the channel to run a recap, nya~! 🐾")

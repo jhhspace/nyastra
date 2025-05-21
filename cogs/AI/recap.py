@@ -101,9 +101,9 @@ class Recap(commands.Cog):
             messages = [
                 msg async for msg in ctx.channel.history(limit=limit)
                 if (
-                    msg.id != ctx.message.id
-                    and msg.content not in ignored_bot_messages
-                    and not (msg.author.bot and (msg.content.startswith('.recap') or msg.content.startswith('!recap')))
+                    #msg.id != ctx.message.id
+                    #and msg.content not in ignored_bot_messages
+                    not (msg.author.bot and (msg.content.startswith('.recap') or msg.content.startswith('!recap')))
                 )
             ]
 

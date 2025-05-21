@@ -72,7 +72,7 @@ class Recap(commands.Cog):
     @commands.has_permissions()
     async def recap(self, ctx, limit: int = None):
         if limit is None:
-            await self.send_error(ctx, "Please enter a number between **15 and 30**, nya~! 🐾")
+            await self.send_error(ctx, f"Please enter a number between **15 and 30**, nya~! 🐾\n\nNote that bot messages are not included in summary")
             return
 
         if not self.recap_enabled:
@@ -80,12 +80,12 @@ class Recap(commands.Cog):
             return
 
         if limit > 30 or limit < 15:
-            await self.send_error(ctx, "Please enter a number between **15 and 30**! 🐾")
+            await self.send_error(ctx, "Please enter a number between **15 and 30**! 🐾\n\nNote that bot messages are not included in summary")
             return
 
         now = datetime.utcnow().timestamp()
         last_used = self._recap_cooldowns.get(ctx.guild.id, 0)
-        cooldown_seconds = 300
+        cooldown_seconds = 600
         if now - last_used < cooldown_seconds:
             remaining = int(cooldown_seconds - (now - last_used))
             await self.send_error(ctx, f"Nyaa~ The recap command is on cooldown for this server. Please wait {remaining} more seconds before trying again! 🐾")
@@ -101,14 +101,14 @@ class Recap(commands.Cog):
             messages = [
                 msg async for msg in ctx.channel.history(limit=limit)
                 if (
-                    #msg.id != ctx.message.id
-                    #and msg.content not in ignored_bot_messages
-                    not (msg.author.bot and (msg.content.startswith('.recap') or msg.content.startswith('!recap')))
+                    msg.id != ctx.message.id
+                    and msg.content not in ignored_bot_messages
+                    and not (msg.author.bot and (msg.content.startswith('.recap') or msg.content.startswith('!recap')))
                 )
             ]
 
             if len(messages) < 15:
-                await self.send_error(ctx, "You need a minimum of **15 messages** in the channel to run a recap, nya~! 🐾")
+                await self.send_error(ctx, f"You need a minimum of **15 messages** in the channel to run a recap, nya~! 🐾\n\nNote that bot messages are not included in summary")
                 # for m in messages:
                     # print(f"{m.id} | {m.author} | {m.content[:30]}...")
                 return
@@ -156,7 +156,7 @@ class Recap(commands.Cog):
             embed = discord.Embed(
                 title="📝 Nyaa~ Chat Recap Time!",
                 description=summary,
-                color=discord.Color.purple()
+                color=discord.Color.pink()
             )
             embed.set_footer(text=f"Requested by {ctx.author.display_name} • Powered by Catnips")
             await ctx.send(embed=embed)
@@ -210,7 +210,7 @@ class Recap(commands.Cog):
                 color=discord.Color.blurple()
             )
             timestamp_dt = datetime.fromisoformat(timestamp)
-            embed.set_footer(text=f"Requested by {author} • {timestamp_dt.strftime('%Y-%m-%d %H:%M UTC')} | Powered by Catnips")
+            embed.set_footer(text=f"Requested by {author} • {timestamp_dt.strftime('%Y-%m-%d %H:%M UTC+0')} | Powered by Catnips")
             await ctx.send(embed=embed)
 
         except Exception as e:

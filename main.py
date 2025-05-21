@@ -31,7 +31,7 @@ async def on_message(message):
         return
 
     if bot.user in message.mentions:
-        await message.channel.send(f'Nya! What can I do for you, {message.author.mention}? Run `.help` to see my commands!')
+        await message.channel.send(f'Nya! What can I do for you, {message.author.mention}?\nRun `.help` to see my commands!')
 
     await bot.process_commands(message)
 
